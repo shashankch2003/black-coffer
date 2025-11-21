@@ -1,24 +1,28 @@
 from neo4j import GraphDatabase
+import random
 
-driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "myneo4jpass123"))
+uri = "bolt://localhost:7687"
+driver = GraphDatabase.driver(uri, auth=("neo4j", "myneo4jpass123"))
 
-def create_graph(tx):
-    # Creates nodes and relationships
-    tx.run("""
-        MERGE (a:Person {name:'Alice'})
-        MERGE (b:Person {name:'Bob'})
-        MERGE (c:Person {name:'Eve'})
-        MERGE (a)-[:FRIEND]->(b)
-        MERGE (a)-[:FRIEND]->(c)
-        MERGE (c)-[:ENEMY]->(b)
-    """)
+def create_large_graph(tx, node_count):
+    # Create 50 Person nodes
+    for i in range(node_count):
+        tx.run("MERGE (:Person {name:$name})", name=f"Person_{i}")
 
-def show_friends(tx, name):
-    for record in tx.run("MATCH (a:Person {name:$name})-[:FRIEND]->(f) RETURN f.name", name=name):
-        print(f"{name} is friends with {record['f.name']}")
+    # Create random "FRIENDS" and "ENEMY" relationships
+    relations = ["FRIEND", "ENEMY"]
+    for _ in range(node_count * 3):  # 150 relationships, approx 3 per node
+        a = random.randint(0, node_count-1)
+        b = random.randint(0, node_count-1)
+        if a != b:
+            rel = random.choice(relations)
+            tx.run(
+                f"MATCH (a:Person {{name:$nameA}}), (b:Person {{name:$nameB}}) "
+                f"MERGE (a)-[:{rel}]->(b)",
+                nameA=f"Person_{a}", nameB=f"Person_{b}"
+            )
 
 with driver.session() as session:
-    session.execute_write(create_graph)
-    session.execute_read(show_friends, "Alice")
+    session.execute_write(create_large_graph, 50)
 
 driver.close()
