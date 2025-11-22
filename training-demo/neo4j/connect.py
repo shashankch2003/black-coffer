@@ -20,7 +20,7 @@ def create_large_graph(tx, node_count):
                 f"MATCH (a:Person {{name:$nameA}}), (b:Person {{name:$nameB}}) "
                 f"MERGE (a)-[:{rel}]->(b)",
                 nameA=f"Person_{a}", nameB=f"Person_{b}"
-            )
+            ) 
 
 with driver.session() as session:
     session.execute_write(create_large_graph, 50)
